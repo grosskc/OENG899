@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="Kevin Gross" />
+
+
+<title>LWIR HSI Simplified Model</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #0000ff; } /* Keyword */
+code > span.ch { color: #008080; } /* Char */
+code > span.st { color: #008080; } /* String */
+code > span.co { color: #008000; } /* Comment */
+code > span.ot { color: #ff4000; } /* Other */
+code > span.al { color: #ff0000; } /* Alert */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #008000; font-weight: bold; } /* Warning */
+code > span.cn { } /* Constant */
+code > span.sc { color: #008080; } /* SpecialChar */
+code > span.vs { color: #008080; } /* VerbatimString */
+code > span.ss { color: #008080; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { } /* Variable */
+code > span.cf { color: #0000ff; } /* ControlFlow */
+code > span.op { } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #ff4000; } /* Preprocessor */
+code > span.do { color: #008000; } /* Documentation */
+code > span.an { color: #008000; } /* Annotation */
+code > span.cv { color: #008000; } /* CommentVar */
+code > span.at { } /* Attribute */
+code > span.in { color: #008000; } /* Information */
+</style>
+
+
+
+<link rel="stylesheet" href="pandoc.css" />
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">LWIR HSI Simplified Model</h1>
+<h4 class="author"><em>Kevin Gross</em></h4>
+<h4 class="date"><em>04-Apr-2018</em></h4>
+
+
+
+<section id="preliminaries" class="level2">
+<h2>Preliminaries</h2>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># Import necessary packages</span>
+<span class="im">import</span> numpy <span class="im">as</span> np
+<span class="im">import</span> matplotlib <span class="im">as</span> mpl
+<span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt
+<span class="im">import</span> h5py
+
+<span class="co"># Set plotting defaults</span>
+mpl.rcParams[<span class="st">&#39;text.usetex&#39;</span>] <span class="op">=</span> <span class="va">True</span>
+mpl.rcParams[<span class="st">&#39;font.family&#39;</span>] <span class="op">=</span> <span class="st">&#39;serif&#39;</span>
+mpl.rcParams[<span class="st">&#39;text.latex.preamble&#39;</span>] <span class="op">=</span> <span class="vs">r&#39;\usepackage[adobe-utopia]</span><span class="sc">{mathdesign}</span><span class="vs">, \usepackage</span><span class="sc">{siunitx}</span><span class="vs">&#39;</span>
+mpl.rcParams[<span class="st">&#39;lines.linewidth&#39;</span>] <span class="op">=</span> <span class="fl">0.5</span>
+
+<span class="co"># turn off interactive plotting</span>
+plt.ioff()</code></pre></div>
+</section>
+<section id="simplest-lwir-hsi-model" class="level2">
+<h2>Simplest LWIR HSI model</h2>
+<p>Under clear sky conditions (no clouds, haze, etc.), scattering can be ignored in the long-wave infrared spectral region (8–12µm), greatly simplifying the radiative transfer model needed to interpret HSI data. Under these simplifying conditions, the apparent spectral radiance <span class="math inline">\(L_{o,i}(\tilde{\nu})\)</span> — <span class="math inline">\(o\)</span> means <em>observed</em>, and <span class="math inline">\(k\)</span> represents pixel index — of a single pixel in a space-born sensor can be expressed as:</p>
+<p><span class="math display">\[L_{o,k}(\tilde{\nu}, \hat{\Omega}_r) = \tau(\tilde{\nu}, \hat{\Omega}_r) L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) + L_a(\tilde{\nu}, \hat{\Omega}_r)\]</span></p>
+<p>Here, <span class="math inline">\(L_{s,k}(\tilde{\nu}, \hat{\Omega}_r)\)</span> represents the surface-leaving radiance traveling in the direction <span class="math inline">\(\hat{\Omega}_r\)</span> of our sensor from the <span class="math inline">\(k^{\mathrm{th}}\)</span> object-space pixel, and it is attenuated by the atmospheric transmittance <span class="math inline">\(\tau(\tilde{\nu}, \hat{\Omega}_r)\)</span> and augmented by atmospheric path radiance <span class="math inline">\(L_a(\tilde{\nu}, \hat{\Omega}_r)\)</span>. Further assuming that the pixel is comprised of a single, pure material constituent, this can be expanded into two components, the thermally emitted radiance and the reflected radiance, <span class="math inline">\(L_{e,k}(\tilde{\nu}, \hat{\Omega}_r)\)</span> and <span class="math inline">\(L_{r,k}(\tilde{\nu}, \hat{\Omega}_r)\)</span>, respectively.</p>
+<p>In general, both the optical properties and surface characteristics of a material govern how it thermally generates and scatters (i.e., reflects) radiation. The net effect of this is captured by the spectral bi-directional reflectance distribution function (BRDF), <span class="math inline">\(\rho_{\mathrm{BRDF}}(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r)\)</span>. The BRDF accounts for the energy arriving from the direction <span class="math inline">\(\hat{\Omega}_i\)</span> that is scattered into the direction <span class="math inline">\(\hat{\Omega}_r\)</span>, and <span class="math inline">\(\rho(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r)\)</span> has units <span class="math inline">\(\mathrm{sr^{-1}}\)</span>. Going forward, the subscript BRDF will be dropped.</p>
+<p>There are two limiting forms for the BRDF that are worth mentioning:</p>
+<ol type="1">
+<li><p><strong>Diffuse</strong> — a diffuse (i.e., Lambertian) surface uniformly scatters radiation from an arbitrary incidence direction equally into all outgoing directions. A diffuse surface illuminated from an arbitrary location has the same brightness from any viewing location. The BRDF can be expressed as <span class="math inline">\(\rho(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r) = R/\pi\)</span> where <span class="math inline">\(R\)</span> represents the directional-hemispheric reflectivity.</p></li>
+<li><p><strong>Specular</strong> — a specular scatterer scatters incident radiation like a mirror, i.e., the angle of reflection equals the angle of incidence, i.e. <span class="math inline">\(\theta_r = \theta_i\)</span>. For a specular surface, <span class="math inline">\(\rho(\tilde{\nu}, \theta_i, \phi_i, \theta_r, \phi_r) = \hat{R}\, \delta(\theta_i-\theta_r) \delta(\phi_i+\pi-\phi_r)\)</span> where <span class="math inline">\(\hat{R}\)</span> represents the Fresnel reflectivity (averaged between each polarization state).</p></li>
+</ol>
+<p>In our simplified LWIR HSI model, we will treat the earth’s surface as being flat, diffuse, and opaque. This allows us to relate the (directional-hemispheric) reflectivity to the (directional-hemispheric) emissivity via <span class="math inline">\(\varepsilon(\tilde{\nu}) = 1 - R(\tilde{\nu})\)</span>. The emitted component of the surface-leaving radiance can be expressed as:</p>
+<p><span class="math display">\[L_{e,k}(\tilde{\nu}, \hat{\Omega}_r) = B(\tilde{\nu},T_i) \left[ 1 - \int_{\frac{2\pi}{\mathrm{sr}}} \rho_k(\hat{\Omega}_r, \hat{\Omega}_i) \cos(\hat{\Omega}_i,\hat{n}) \mathrm{d}\Omega_i\right] \simeq \left(1-R_k(\tilde{\nu})\right) B(\tilde{\nu},T_i)\]</span></p>
+<p>The scattered component of the surface-leaving radiance can be expressed as</p>
+<p><span class="math display">\[L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) = \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}_i) \rho_k(\hat{\Omega}_r, \hat{\Omega}_i) \cos(\hat{\Omega}_i,\hat{n}) \mathrm{d}\Omega_i\]</span></p>
+<p>where <span class="math inline">\(L_d(\tilde{\nu},\hat{\Omega}_i)\)</span> is the downwelling (space-to-earth) spectral radiance that includes both solar and skyshine components. Often these two components are broken out so that</p>
+<p><span class="math display">\[L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) = \rho_k(\hat{\Omega}_r, \hat{\Omega}_{sun}) L_{sun}(\tilde{\nu}) \cos(\hat{\Omega}_{sun},\hat{n}) \Omega_{sun} + \int_{\Omega_{sky}} L_d(\tilde{\nu},\hat{\Omega}_i) \rho_k(\hat{\Omega}_r, \hat{\Omega}_i) \cos(\hat{\Omega}_i,\hat{n}) \mathrm{d}\Omega_i\]</span></p>
+<p>which in the Lambertian limit is</p>
+<p><span class="math display">\[\frac{R_k(\tilde{\nu})}{\pi} \cos(\hat{\Omega}_{sun},\hat{n}) \Omega_{sun} L_{sun}(\tilde{\nu}) + \frac{(2\pi-\Omega_{sun})}{2\pi}R_k(\tilde{\nu}) L_d(\tilde{\nu}) \simeq R_k(\tilde{\nu}) L_d(\tilde{\nu})\]</span></p>
+<p>where <span class="math inline">\(L_d(\tilde{\nu})\)</span> is the hemispherically averaged downwelling radiance, i.e.,</p>
+<p><span class="math display">\[L_d(\tilde{\nu}) = \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}) \cos(\hat{\Omega},\hat{n}) \mathrm{d}\Omega\]</span></p>
+<p>Putting this together gives:</p>
+<p><span class="math display">\[L_{o,k}(\tilde{\nu}) = \tau(\tilde{\nu}) \left[ (1-R_k(\tilde{\nu})) B(\tilde{\nu},T_k) + R_k(\tilde{\nu}) L_d(\tilde{\nu}) \right] + L_a(\tilde{\nu})\]</span></p>
+<p>where the directionality has been dropped for easier notation (not because it isn’t important).</p>
+</section>
+<section id="planckian-spectral-distribution-for-blackbody-radiation" class="level2">
+<h2>Planckian spectral distribution for blackbody radiation</h2>
+<p><a href="https://en.wikipedia.org/wiki/Planck%27s_law">Planck’s distribution</a>, <span class="math inline">\(B(\tilde{\nu})\)</span>, gives the spectral radiance produced by an ideal blackbody radiator at a temperature <span class="math inline">\(T\)</span>. It is given by</p>
+<p><span class="math display">\[B(\tilde{\nu}) = \frac{c_1 \tilde{\nu}^3}{e^{c_2 \tilde{\nu} / T} - 1}\]</span></p>
+<p>where <span class="math inline">\(c_1 = 2 h c^2\)</span> and <span class="math inline">\(c_2 = h c / k_B\)</span> are the first and second radiation constants, respectively.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> planckian(X, T, wavelength<span class="op">=</span><span class="va">False</span>):
+    <span class="co">&quot;&quot;&quot;</span>
+<span class="co">    Compute the Planckian spectral radiance distribution.</span>
+
+<span class="co">    Computes the spectral radiance L at wavenumber(s) X for a system at</span>
+<span class="co">    temperature(s) T using Planck&#39;s distribution function. X must be a scalar</span>
+<span class="co">    or a vector. T can be of arbitrary dimensions. The shape of output L will</span>
+<span class="co">    be ``(X.size, *T.shape)``.</span>
+
+<span class="co">    Parameters</span>
+<span class="co">    ----------</span>
+<span class="co">    X : array_like (N,)</span>
+<span class="co">      spectral axis, wavenumbers [1/cm], 1D array</span>
+<span class="co">    T : array_like</span>
+<span class="co">      temperature array, Kelvin [K], arbitrary dimensions</span>
+<span class="co">    wavelength : logical</span>
+<span class="co">      if true, interprets spectral input `X` as wavelength [micron, µm]</span>
+
+<span class="co">    Returns</span>
+<span class="co">    -------</span>
+<span class="co">    L : array_like</span>
+<span class="co">      spectral radiance in [µW/(cm^2·sr·cm^-1)], or if wavelength=True,</span>
+<span class="co">      spectral radiance in [µW/(cm^2·sr·µm)] (microflick, µF)</span>
+
+<span class="co">    Example</span>
+<span class="co">    _______</span>
+<span class="co">    &gt;&gt;&gt; import numpy as np</span>
+<span class="co">    &gt;&gt;&gt; import matplotlib.pyplot as plt</span>
+<span class="co">    &gt;&gt;&gt; X = np.linspace(2000,5000,100)</span>
+<span class="co">    &gt;&gt;&gt; T = np.linspace(273,373,10)</span>
+<span class="co">    &gt;&gt;&gt; L = planckian(X,T)</span>
+<span class="co">    &gt;&gt;&gt; plt.plot(X,L)</span>
+<span class="co">    &quot;&quot;&quot;</span>
+    <span class="co"># Physical constants</span>
+    <span class="co"># h  = 6.6260689633e-34 # [J s]       - Planck&#39;s constant</span>
+    <span class="co"># c  = 299792458        # [m/s]       - speed of light</span>
+    <span class="co"># k  = 1.380650424e-23  # [J/K]       - Boltzman constant</span>
+    c1 <span class="op">=</span> <span class="fl">1.19104295315e-16</span>  <span class="co"># [J m^2 / s] - 1st radiation constant, c1 = 2 * h * c**2</span>
+    c2 <span class="op">=</span> <span class="fl">1.43877736830e-02</span>  <span class="co"># [m K]       - 2nd radiation constant, c2 = h * c / k</span>
+
+    <span class="co"># Ensure inputs are NumPy arrays</span>
+    X <span class="op">=</span> np.asarray(X).flatten()  <span class="co"># X must be 1D array</span>
+    T <span class="op">=</span> np.asarray(T)
+
+    <span class="co"># Make X a column vector and T a row vector for broadcasting into 2D arrays</span>
+    X <span class="op">=</span> X[:, np.newaxis]
+    dimsT <span class="op">=</span> T.shape  <span class="co"># keep shape info for later reshaping into ND array</span>
+    T <span class="op">=</span> T.flatten()[np.newaxis, :]
+
+    <span class="co"># Compute Planck&#39;s spectral radiance distribution</span>
+    <span class="cf">if</span> wavelength <span class="kw">or</span> np.mean(X) <span class="op">&lt;</span> <span class="dv">50</span>:  <span class="co"># compute using wavelength (with hueristics)</span>
+        <span class="cf">if</span> <span class="kw">not</span> wavelength:
+            <span class="bu">print</span>(<span class="st">&#39;Assumes X given in µm; returning L in µF&#39;</span>)
+        X <span class="op">*=</span> <span class="fl">1e-6</span>  <span class="co"># convert to m from µm</span>
+        L <span class="op">=</span> c1 <span class="op">/</span> (X<span class="op">**</span><span class="dv">5</span> <span class="op">*</span> (np.exp(c2 <span class="op">/</span> (X <span class="op">*</span> T)) <span class="op">-</span> <span class="dv">1</span>))  <span class="co"># [W/(m^2 sr m)] SI</span>
+        L <span class="op">*=</span> <span class="fl">1e-4</span>  <span class="co"># convert to [µW/(cm^2 sr µm^{-1})]</span>
+    <span class="cf">else</span>:  <span class="co"># compute using wavenumbers</span>
+        X <span class="op">*=</span> <span class="dv">100</span>  <span class="co"># convert to 1/m from 1/cm</span>
+        L <span class="op">=</span> c1 <span class="op">*</span> X<span class="op">**</span><span class="dv">3</span> <span class="op">/</span> (np.exp(c2 <span class="op">*</span> X <span class="op">/</span> T) <span class="op">-</span> <span class="dv">1</span>)  <span class="co"># [W/(m^2 sr m^{-1})]</span>
+        L <span class="op">*=</span> <span class="fl">1e4</span>  <span class="co"># convert to [µW/(cm^2 sr cm^{-1})] (1e6 / 1e2)</span>
+
+    <span class="co"># Reshape L if necessary and return</span>
+    <span class="cf">return</span> np.reshape(L, (X.size, <span class="op">*</span>dimsT))</code></pre></div>
+<p>Let’s visualize the Planckian distribution in the LWIR over a range of atmospheric temperatures.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># plot Planck&#39;s distribution over range of atmospheric temperatures</span>
+X <span class="op">=</span> np.linspace(<span class="dv">10000</span><span class="op">/</span><span class="dv">12</span>, <span class="dv">10000</span><span class="op">/</span><span class="dv">8</span>, <span class="dv">500</span>)  <span class="co"># [cm^{-1}], corresponding to 8–12µm</span>
+T <span class="op">=</span> np.linspace(<span class="dv">250</span>, <span class="dv">310</span>, <span class="dv">5</span>)  <span class="co"># [K]</span>
+fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))
+<span class="cf">for</span> i, temp <span class="kw">in</span> <span class="bu">enumerate</span>(T):
+    plt.plot(X, planckian(X, temp), label<span class="op">=</span><span class="vs">rf&quot;$T=</span><span class="sc">{</span>temp<span class="sc">}</span><span class="vs">\,\si</span><span class="ch">{{</span><span class="vs">K}}$&quot;</span>)
+plt.xlabel(<span class="vs">r&#39;Wavenumber, $\tilde{\nu} \left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&#39;</span>)
+plt.ylabel(
+    <span class="vs">r&#39;Blackbody Radiance, $B(\tilde{\nu},T)\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&#39;</span>)
+plt.legend()
+fig.tight_layout()
+fig.savefig(<span class="st">&#39;figures/Planckian.png&#39;</span>, dpi<span class="op">=</span><span class="dv">300</span>)</code></pre></div>
+<figure>
+<img src="figures/Planckian.png" alt="Planckian distribution in the LWIR for a range of terrestrial temperatures." /><figcaption>Planckian distribution in the LWIR for a range of terrestrial temperatures.</figcaption>
+</figure>
+</section>
+<section id="load-emissivity-and-atmospheric-radiative-transfer-database" class="level2">
+<h2>Load emissivity and atmospheric radiative transfer database</h2>
+<p>We have a set of material emissivities and atmospheric radiative transfer terms stored in a (somewhat) self-documented HDF5 file. However, this is a <em>preliminary</em> set of HSI inputs useful for exploring the impact of emissivity and the atmosphere on a remotely-sensed measurement. We have many more emissivity curves for natural and man-made materials, and many, many more atmospheric radiative transfer inputs and outputs available. Much more work will be going into this aspect of the LWIR HSI model.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># Load H5 file</span>
+f <span class="op">=</span> h5py.File(<span class="st">&quot;LWIR_HSI_inputs.h5&quot;</span>, <span class="st">&quot;r&quot;</span>)
+<span class="bu">print</span>(<span class="bu">list</span>(f.keys()))
+
+<span class="co"># Extract spectral axis, wavenumbers, (nX,)</span>
+X <span class="op">=</span> f[<span class="st">&quot;X&quot;</span>][...]
+
+<span class="co"># example demonstrating that there is metadata in this HDF5 file</span>
+<span class="bu">print</span>(<span class="ss">f&quot;&quot;&quot;The spectral axis, </span><span class="sc">{f</span>[<span class="st">&quot;X&quot;</span>]<span class="sc">.</span>attrs[<span class="st">&#39;name&#39;</span>]<span class="sc">}</span><span class="ss">, has units &quot;&quot;&quot;</span> <span class="op">+</span>
+      <span class="ss">f&quot;&quot;&quot;</span><span class="sc">{f</span>[<span class="st">&quot;X&quot;</span>]<span class="sc">.</span>attrs[<span class="st">&#39;units&#39;</span>]<span class="sc">}</span><span class="ss"> and spans </span><span class="sc">{X.</span><span class="bu">min</span>()<span class="sc">:0.1f}</span><span class="ss"> ≤ X ≤ </span><span class="sc">{X.</span><span class="bu">max</span>()<span class="sc">:0.1f}</span><span class="ss">&quot;&quot;&quot;</span>)
+
+<span class="co"># Extract emissivity, (nX, nM)</span>
+emis <span class="op">=</span> f[<span class="st">&quot;emis&quot;</span>][...]  <span class="co"># spectral dimension first</span>
+
+<span class="co"># atmospheric state variables, (nA, nZ)</span>
+z <span class="op">=</span> f[<span class="st">&quot;z&quot;</span>][...]      <span class="co"># altitude above sea level, [km]</span>
+Tz <span class="op">=</span> f[<span class="st">&quot;T&quot;</span>][...]     <span class="co"># temperature profile, [K]</span>
+Ts <span class="op">=</span> Tz[:, <span class="dv">0</span>]         <span class="co"># surface temperature, [K]</span>
+H2O <span class="op">=</span> f[<span class="st">&quot;H2O&quot;</span>][...]  <span class="co"># water vapor volume mixing fraction, [ppm]</span>
+O3 <span class="op">=</span> f[<span class="st">&quot;O3&quot;</span>][...]    <span class="co"># ozone volume mixing fraction, [ppm]</span>
+
+<span class="co"># atmospheric radiative transfer terms</span>
+tau <span class="op">=</span> f[<span class="st">&quot;tau&quot;</span>][...]  <span class="co"># transmittance, [no units]</span>
+La <span class="op">=</span> f[<span class="st">&quot;La&quot;</span>][...]    <span class="co"># atmospheric path radiance, [µW/(cm^2 sr cm^{-1})]</span>
+Ld <span class="op">=</span> f[<span class="st">&quot;Ld&quot;</span>][...]    <span class="co"># downwelling radiance, [µW/(cm^2 sr cm^{-1})]</span>
+
+<span class="co"># close H5 file</span>
+f.close()</code></pre></div>
+<p>The atmospheric input variables and output variables are both available. Let’s compare a few different “inputs” and “outputs”. We pick three atmospheric states corresponding to the lowest, median, and highest spectrally-averaged transmittance.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># take the first, middle, and last atmospheric states (which have been sorted)</span>
+<span class="co"># byt the spectrally-averaged transmittance</span>
+nA <span class="op">=</span> Tz.shape[<span class="dv">0</span>]
+ixA <span class="op">=</span> np.linspace(<span class="dv">0</span>, nA<span class="op">-</span><span class="dv">1</span>, <span class="dv">3</span>).astype(<span class="st">&#39;int&#39;</span>)
+fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="fl">7.5</span>, <span class="dv">10</span>))
+
+<span class="co"># temperature</span>
+plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>)
+<span class="cf">for</span> a <span class="kw">in</span> ixA:
+    plt.semilogy(Tz[a, :].transpose(), z, label<span class="op">=</span><span class="vs">fr&#39;atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
+plt.xlabel(<span class="st">&#39;Temperature, T [K]&#39;</span>)
+plt.ylabel(<span class="st">&#39;Altitude, $z$ [km]&#39;</span>)
+plt.legend()
+
+<span class="co"># mixing fraction profiles</span>
+plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>)
+<span class="cf">for</span> i, a <span class="kw">in</span> <span class="bu">enumerate</span>(ixA):
+    c <span class="op">=</span> <span class="ss">f&quot;C</span><span class="sc">{i:d}</span><span class="ss">&quot;</span>
+    h2o <span class="op">=</span> H2O[a, :].transpose()
+    o3 <span class="op">=</span> O3[a, :].transpose()
+    plt.loglog(h2o, z, color<span class="op">=</span>c, label<span class="op">=</span><span class="vs">fr&#39;H2O, atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
+    plt.loglog(o3, z, <span class="st">&#39;--&#39;</span>, color<span class="op">=</span>c, label<span class="op">=</span><span class="vs">fr&#39;O3, atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
+plt.xlabel(<span class="st">&#39;Mixing Fraction [ppmv]&#39;</span>)
+plt.ylabel(<span class="st">&#39;Altitude, z [km]&#39;</span>)
+plt.legend()
+
+<span class="co"># transmittance</span>
+plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>)
+<span class="cf">for</span> a <span class="kw">in</span> ixA:
+    plt.plot(X, tau[:, a], label<span class="op">=</span><span class="vs">fr&#39;atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
+plt.xlabel(<span class="vs">r&#39;Wavenumbers, $\tilde{\nu}$ [$\mathrm{cm^{-1</span><span class="sc">}}</span><span class="vs">$]&#39;</span>)
+plt.ylabel(<span class="vs">r&#39;Transmittance, $\tau(\tilde{\nu})$&#39;</span>)
+plt.legend()
+
+<span class="co"># path radiance</span>
+plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">4</span>)
+<span class="cf">for</span> a <span class="kw">in</span> ixA:
+    plt.plot(X, La[:, a], label<span class="op">=</span><span class="vs">fr&#39;atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
+plt.xlabel(<span class="vs">r&#39;Wavenumbers, $\tilde{\nu}$ [$\mathrm{cm^{-1</span><span class="sc">}}</span><span class="vs">$]&#39;</span>)
+plt.ylabel(
+    <span class="vs">r&#39;Path Radiance, $L_a(\tilde{\nu})$ [$\si{\micro W/(cm^2.sr.cm^{-1</span><span class="sc">}}</span><span class="vs">$]&#39;</span>)
+plt.legend()
+fig.tight_layout()
+fig.savefig(<span class="st">&#39;figures/AtmosInputsOutputs.png&#39;</span>, dpi<span class="op">=</span><span class="dv">300</span>)</code></pre></div>
+<p>On the left panel are the temperature and mixing fraction altitude profiles for the three atmospheric states previously described. Notice that the high temperature, high moisture atmosphere produces a strongly-attenuated transmittance and a corresponding large path radiance. Similarly, the cold, dry atmosphere is highly transparent and a much weaker radiator.</p>
+<figure>
+<img src="figures/AtmosInputsOutputs.png" alt="Atmospheric state variables (left panels) and the corresponding radiative transfer terms (right panels)." /><figcaption>Atmospheric state variables (left panels) and the corresponding radiative transfer terms (right panels).</figcaption>
+</figure>
+</section>
+<section id="python-radiative-transfer-model" class="level2">
+<h2>Python radiative transfer model</h2>
+<p>This is a simple implementation of the LWIR HSI model desccribed above. However, there are realistic effects that still need to be incorporated so our efforts can be made more relevant to applications of interest. An incomplete list of things would be nice to add, in no particular order, are:</p>
+<ul>
+<li>subpixel targets</li>
+<li>partial cloud cover</li>
+<li>solar illumination (for extension into the MWIR 2-5µm)</li>
+<li>scattering (for extension into the Vis/SWIR 0.4-2µm)</li>
+<li>simple BRDF effects (for more realistic distributions of effective emissivities)</li>
+</ul>
+<p>Use broadcasting to efficiently generate every possible apparent radiance spectrum given each material and atmospheric state. The convention will be <code>L.shape = (nX, nE, nA)</code> where <code>nX</code> is the number of spectral channels (<code>X.size</code>), <code>nE</code> is the number of materials (<code>emis.shape[1]</code>), and <code>nA</code> is the number of atmospheric states (<code>tau.shape[1]</code>). Alternatively, if a temperature range of length <code>nT</code> is specified, the apparent spectral radiance dimensions will be <code>L.shape = (nX, nE, nA, nT)</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> compute_radiance(X, emis, Ts, tau, La, Ld, dT<span class="op">=</span><span class="va">None</span>):
+    <span class="co">r&quot;&quot;&quot;</span>
+<span class="co">    Compute spectral radiance for given emissivities and atmospheric states.</span>
+
+<span class="co">    Efficienetly computes (via broadcasting) every combination of spectral radiance</span>
+<span class="co">    for a set of emissivity profiles, a set of atmospheric radiative terms, and an</span>
+<span class="co">    optional range of surface temperatures.</span>
+
+<span class="co">    Parameters</span>
+<span class="co">    __________</span>
+<span class="co">    X: array_like (nX,)</span>
+<span class="co">      spectral axis in wavenumbers [1/cm], 1D array of length `nX`</span>
+<span class="co">    emis: array_like (nX, nE)</span>
+<span class="co">      emissivity array – `nE` is the number of materials</span>
+<span class="co">    Ts: array_like (nA,)</span>
+<span class="co">      surface temperature [K], 1D array of length `nA`</span>
+<span class="co">    tau: array_like (nX, nA)</span>
+<span class="co">      atmospheric transmittance between source and sensor [0 ≤ tau ≤ 1]</span>
+<span class="co">    La: array_like (nX, nA)</span>
+<span class="co">      upwelling atmospheric path radiance [µW/(cm^2 sr cm^{-1})]</span>
+<span class="co">    Ld: array_like (nX, nA)</span>
+<span class="co">      hemispherically-averaged atmospheric downwelling radiance [µW/(cm^2 sr cm^{-1})]</span>
+<span class="co">    dT: array_like (nT,), optional {None}</span>
+<span class="co">      surface temperature deltas, relative to `Ts` [K]</span>
+
+<span class="co">    Returns</span>
+<span class="co">    _______</span>
+<span class="co">    L: array_like (nX, nE, nA) or (nX, nE, nA, nT)</span>
+<span class="co">      apparent spectral radiance</span>
+<span class="co">    &quot;&quot;&quot;</span>
+    <span class="cf">if</span> dT <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span>:
+        T_ <span class="op">=</span> Ts.flatten()[:, np.newaxis] <span class="op">+</span> <span class="op">\</span>
+            np.asarray(dT).flatten()[np.newaxis, :]
+        B_ <span class="op">=</span> planckian(X, T_)[:, np.newaxis, :]
+        tau_ <span class="op">=</span> tau[:, np.newaxis, :, np.newaxis]
+        La_ <span class="op">=</span> La[:, np.newaxis, :, np.newaxis]
+        Ld_ <span class="op">=</span> Ld[:, np.newaxis, :, np.newaxis]
+        em_ <span class="op">=</span> emis[:, :, np.newaxis, np.newaxis]
+    <span class="cf">else</span>:
+        T_ <span class="op">=</span> Ts.flatten()
+        B_ <span class="op">=</span> planckian(X, T_)[:, np.newaxis, :]
+        tau_ <span class="op">=</span> tau[:, np.newaxis, :]
+        La_ <span class="op">=</span> La[:, np.newaxis, :]
+        Ld_ <span class="op">=</span> Ld[:, np.newaxis, :]
+        em_ <span class="op">=</span> emis[:, :, np.newaxis]
+    L <span class="op">=</span> tau_ <span class="op">*</span> (em_ <span class="op">*</span> B_ <span class="op">+</span> (<span class="dv">1</span><span class="op">-</span>em_) <span class="op">*</span> Ld_) <span class="op">+</span> La_
+    <span class="cf">return</span> L
+
+<span class="co"># Compute radiance for given emis and atmos rad txfr inputs</span>
+L <span class="op">=</span> compute_radiance(X, emis, Ts, tau, La, Ld)</code></pre></div>
+</section>
+<section id="the-discrimination-challenge" class="level2">
+<h2>The discrimination challenge</h2>
+<p>The atmospheric state has big “lever arm” on the variance of apparent radiance. To appreciate this, we develop some functions to visualize the impact of emissivity and atmospheric state on apparent radiance.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># helper plotting tool</span>
+<span class="kw">def</span> plot_apparent_rad(eID<span class="op">=</span>[<span class="dv">0</span>], aID<span class="op">=</span>[<span class="dv">0</span>], k<span class="op">=</span><span class="dv">0</span>):
+    <span class="cf">if</span> <span class="bu">len</span>(eID) <span class="op">&gt;</span> <span class="dv">1</span>:
+        aID <span class="op">=</span> aID[<span class="dv">0</span>]
+        <span class="cf">for</span> i, e <span class="kw">in</span> <span class="bu">enumerate</span>(eID):
+            plt.plot(X, L[:, e, aID], label<span class="op">=</span><span class="ss">f&quot;k=</span><span class="sc">{i}</span><span class="ss">, Matl ID = </span><span class="sc">{</span>eID[i]<span class="sc">}</span><span class="ss">&quot;</span>)
+        plt.title(<span class="vs">fr&#39;Atm ID \# </span><span class="sc">{</span>aID<span class="sc">}</span><span class="vs">&#39;</span>)
+    <span class="cf">else</span>:
+        <span class="cf">for</span> i, a <span class="kw">in</span> <span class="bu">enumerate</span>(aID):
+            plt.plot(X, L[:, eID, a], label<span class="op">=</span><span class="vs">fr&quot;Atm ID \#</span><span class="sc">{</span>aID[i]<span class="sc">}</span><span class="vs">&quot;</span>)
+            plt.title(<span class="ss">f&#39;k=</span><span class="sc">{k}</span><span class="ss">, Material ID = </span><span class="sc">{</span>eID<span class="sc">}</span><span class="ss">&#39;</span>)
+    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
+    plt.ylabel(
+        <span class="vs">r&quot;$L_{o,k}(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&quot;</span>)
+    plt.legend()
+    <span class="cf">return</span> <span class="va">None</span>
+
+<span class="co"># take uniform sampling of atm</span>
+<span class="kw">def</span> aIDs(N): <span class="cf">return</span> np.linspace(<span class="dv">0</span>, tau.shape[<span class="dv">1</span>]<span class="op">-</span><span class="dv">1</span>, N).astype(<span class="st">&#39;uint&#39;</span>)
+
+<span class="co"># sort emissivities by mean emissivity -- most emissivities in this database</span>
+<span class="co"># are high, so take first two plus a high one</span>
+ix_em <span class="op">=</span> np.argsort(emis.mean(axis<span class="op">=</span><span class="dv">0</span>))
+eIDs <span class="op">=</span> ix_em[[<span class="dv">0</span>, <span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>]]
+
+<span class="co"># set up plot parameters</span>
+N_atm <span class="op">=</span> <span class="dv">3</span>
+N_em <span class="op">=</span> <span class="bu">len</span>(eIDs)
+
+<span class="co"># Plot each material separately, while showing apparent radiance under a common</span>
+<span class="co"># set of distinct atmospheres</span>
+fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">10</span>))
+<span class="cf">for</span> i, e <span class="kw">in</span> <span class="bu">enumerate</span>(eIDs):
+    ax <span class="op">=</span> plt.subplot(N_em, <span class="dv">1</span>, i<span class="op">+</span><span class="dv">1</span>)
+    plot_apparent_rad(eID<span class="op">=</span>[e], aID<span class="op">=</span>aIDs(N_atm), k<span class="op">=</span>i)
+    ax2 <span class="op">=</span> ax.twinx()
+    plt.plot(X, emis[:, e], color<span class="op">=</span><span class="st">&#39;black&#39;</span>, label<span class="op">=</span><span class="st">&#39;Emissivity&#39;</span>)
+    plt.ylabel(<span class="st">&#39;Emissivity&#39;</span>)
+fig.tight_layout()
+fig.savefig(<span class="st">&#39;figures/AtmosphericVariability.png&#39;</span>, dpi<span class="op">=</span><span class="dv">300</span>)
+
+<span class="co"># Plot each atmospheric state separately, while showing apparent radiance under</span>
+<span class="co"># a common set of distinct materials</span>
+fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">10</span>))
+<span class="cf">for</span> i, a <span class="kw">in</span> <span class="bu">enumerate</span>(aIDs(N_atm)):
+    ax <span class="op">=</span> plt.subplot(N_atm, <span class="dv">1</span>, i<span class="op">+</span><span class="dv">1</span>)
+    plot_apparent_rad(eID<span class="op">=</span>eIDs, aID<span class="op">=</span>[a])
+fig.tight_layout()
+fig.savefig(<span class="st">&#39;figures/EmissivityVariability.png&#39;</span>, dpi<span class="op">=</span><span class="dv">300</span>)</code></pre></div>
+<p>The following figures presents the apparent spectral radiance from three different pixels, each containing a different pure material for each of three different atmospheric conditions.</p>
+<p>In the first figure, each pixel / material is presented in a different panel. Within each panel, the material is viewed under the three distinct atmospheric conditions. It is clear that the atmospheric radiative properties have a large impact on the measured signature.</p>
+<figure>
+<img src="figures/AtmosphericVariability.png" alt="Impact of atmospheric radiation on different materials." /><figcaption>Impact of atmospheric radiation on different materials.</figcaption>
+</figure>
+<p>In the second figure, each atmospheric state is presented in a different panel, ordered from most attenuating at the top to least attenuating at the bottom. Within each panel, the three different materials are viewed under a common set of atmospheric conditions. It is clear that the surface-leaving radiance, which is a strong function of emissivity, has a larger impact on the measured signal when the atmosphere is more transparent.</p>
+<figure>
+<img src="figures/EmissivityVariability.png" alt="Distinguishability of materials under different atmospheric conditions." /><figcaption>Distinguishability of materials under different atmospheric conditions.</figcaption>
+</figure>
+<p>Now let’s generate a more complete look at all the factors involved for each material emissivity and atmospheric state.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># clean up Ld due to division by small number</span>
+ix <span class="op">=</span> tau <span class="op">&lt;</span> <span class="fl">1e-4</span>
+Ld_ <span class="op">=</span> np.copy(Ld)
+Ld_[ix] <span class="op">=</span> np.nan
+
+<span class="co"># Plot apparent spectral radiance and the various radiative transfer terms</span>
+<span class="co"># which affect the measured signature -- also show atmospheric state parameters</span>
+
+<span class="kw">def</span> plot_radiance(atmID<span class="op">=</span><span class="dv">0</span>, emisID<span class="op">=</span><span class="dv">0</span>):
+    fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="fl">8.0</span>, <span class="fl">10.0</span>))
+    <span class="co"># 1st plot - apparent radiance</span>
+    plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>)
+    lbl <span class="op">=</span> <span class="ss">f&quot;Atmos \#</span><span class="sc">{</span>atmID<span class="sc">}</span><span class="ss">, Matl \#</span><span class="sc">{</span>emisID<span class="sc">}</span><span class="ss">&quot;</span>
+    plt.plot(X, L[:, emisID, atmID], label<span class="op">=</span>lbl)
+    plt.ylabel(
+        <span class="vs">r&quot;$L(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&quot;</span>)
+    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
+    plt.legend()
+
+    <span class="co"># 2nd plot - atmospheric radiation terms</span>
+    ax1 <span class="op">=</span> plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>)
+    a1 <span class="op">=</span> ax1.plot(X, tau[:, atmID], color<span class="op">=</span><span class="st">&#39;C0&#39;</span>, label<span class="op">=</span><span class="vs">r&#39;$\tau$&#39;</span>)
+    plt.ylabel(<span class="vs">r&quot;$\tau(\tilde{\nu})$&quot;</span>)
+    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
+    ax1.legend()
+    ax2 <span class="op">=</span> ax1.twinx()
+    a2 <span class="op">=</span> ax2.plot(X, La[:, atmID], color<span class="op">=</span><span class="st">&#39;C1&#39;</span>, label<span class="op">=</span><span class="st">&quot;$L_a$&quot;</span>)
+    a3 <span class="op">=</span> ax2.plot(X, Ld_[:, atmID], color<span class="op">=</span><span class="st">&#39;C2&#39;</span>, label<span class="op">=</span><span class="st">&quot;$L_d$&quot;</span>)
+    plt.ylabel(
+        <span class="vs">r&#39;$L_{a,d}(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&#39;</span>)
+    leg <span class="op">=</span> a1<span class="op">+</span>a2<span class="op">+</span>a3
+    labs <span class="op">=</span> [l.get_label() <span class="cf">for</span> l <span class="kw">in</span> leg]
+    ax1.legend(leg, labs, loc<span class="op">=</span><span class="dv">0</span>)
+    fig.tight_layout()
+
+    <span class="co"># 3rd plot - surface-leaving radiance and reflectivity</span>
+    ax1 <span class="op">=</span> plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">3</span>)
+    B <span class="op">=</span> planckian(X, Ts[atmID])
+    a1 <span class="op">=</span> plt.plot(X, B, label<span class="op">=</span><span class="ss">f&quot;Planckian, T=</span><span class="sc">{Ts</span>[atmID]<span class="sc">:0.1f}</span><span class="ss"> K&quot;</span>)
+    a2 <span class="op">=</span> plt.plot(X, emis[:, emisID] <span class="op">*</span> B, label<span class="op">=</span><span class="st">&quot;Thermal Emission&quot;</span>)
+    a3 <span class="op">=</span> plt.plot(X, (<span class="dv">1</span> <span class="op">-</span> emis[:, emisID]) <span class="op">*</span> Ld_[:, atmID], label<span class="op">=</span><span class="st">&quot;Reflected&quot;</span>)
+    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
+    plt.ylabel(
+        <span class="vs">r&quot;$L_s(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&quot;</span>)
+    ax2 <span class="op">=</span> ax1.twinx()
+    a4 <span class="op">=</span> plt.plot(X, emis[:, emisID], color<span class="op">=</span><span class="st">&#39;C3&#39;</span>, label<span class="op">=</span><span class="st">&quot;Emissivity&quot;</span>)
+    plt.ylabel(<span class="st">&#39;Emissivity&#39;</span>)
+    leg <span class="op">=</span> a1<span class="op">+</span>a2<span class="op">+</span>a3<span class="op">+</span>a4
+    labs <span class="op">=</span> [l.get_label() <span class="cf">for</span> l <span class="kw">in</span> leg]
+    ax1.legend(leg, labs, loc<span class="op">=</span><span class="dv">0</span>)
+
+    <span class="co"># 4th plot - atmospheric state variables</span>
+    <span class="co"># trim atmospheric profiles to the first 17 km</span>
+    ix <span class="op">=</span> z <span class="op">&lt;=</span> <span class="dv">17</span>
+    z_ <span class="op">=</span> z[ix]
+    H2O_ <span class="op">=</span> H2O[atmID, ix]
+    Tz_ <span class="op">=</span> Tz[atmID, ix]
+    ax1 <span class="op">=</span> plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">4</span>)
+    b1 <span class="op">=</span> ax1.plot(Tz_, z_, color<span class="op">=</span><span class="st">&quot;C0&quot;</span>, label<span class="op">=</span><span class="st">&quot;Temperature&quot;</span>)
+    plt.xlabel(<span class="st">&#39;Temperature [K]&#39;</span>)
+    plt.ylabel(<span class="st">&#39;Altitude [km]&#39;</span>)
+    ax2 <span class="op">=</span> ax1.twiny()
+    b2 <span class="op">=</span> ax2.plot(H2O_, z_, color<span class="op">=</span><span class="st">&quot;C1&quot;</span>, label<span class="op">=</span><span class="vs">r&quot;$\mathrm</span><span class="sc">{H_2O}</span><span class="vs">$&quot;</span>)
+    plt.xlabel(<span class="st">&#39;Mixing Fraction [ppmv]&#39;</span>)
+    leg <span class="op">=</span> b1<span class="op">+</span>b2
+    labs <span class="op">=</span> [l.get_label() <span class="cf">for</span> l <span class="kw">in</span> leg]
+    ax1.legend(leg, labs, loc<span class="op">=</span><span class="dv">0</span>)
+    fig.tight_layout()
+    <span class="cf">return</span> fig
+
+
+<span class="co"># loop over each material and atmospheric state</span>
+<span class="cf">for</span> a <span class="kw">in</span> aIDs(N_atm):
+    <span class="cf">for</span> e <span class="kw">in</span> eIDs:
+        f <span class="op">=</span> plot_radiance(atmID<span class="op">=</span>a, emisID<span class="op">=</span>e)
+        f.savefig(<span class="ss">f&quot;figures/RadOverview-aID</span><span class="sc">{a:03d}</span><span class="ss">-eID</span><span class="sc">{e:03d}</span><span class="ss">&quot;</span>, dpi<span class="op">=</span><span class="dv">300</span>)</code></pre></div>
+<p>The preceding code produced a figure like the following for each combination of material and atmospheric state. The full set of figures can be found in the <code>./figures/</code> subdirectory.</p>
+<figure>
+<img src="figures/RadOverview-aID039-eID003.png" alt="Detailed look at the atmospheric factors affecting apparent radiance." /><figcaption>Detailed look at the atmospheric factors affecting apparent radiance.</figcaption>
+</figure>
+</section>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

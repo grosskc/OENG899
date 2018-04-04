@@ -1,10 +1,8 @@
 ---
-title: LWIR HSI Equation Overview
+title: LWIR HSI Simplified Model with Example Spectra
 author: Kevin Gross
 date: 04-Apr-2018
 ---
-# Week 1b — LWIR HSI equation and example spectra
-
 ## Preliminaries
 
 ```python
@@ -38,7 +36,7 @@ There are two limiting forms for the BRDF that are worth mentioning:
 
 1. **Diffuse** — a diffuse (i.e., Lambertian) surface uniformly scatters radiation from an arbitrary incidence direction equally into all outgoing directions. A diffuse surface illuminated from an arbitrary location has the same brightness from any viewing location. The BRDF can be expressed as $\rho(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r) = R/\pi$ where $R$ represents the directional-hemispheric reflectivity.
 
-2. **Specular** — a specular scatterer scatters incident radiation like a mirror, i.e., the angle of reflection equals the angle of incidence, i.e. $\theta_r = \theta_i$. For a specular surface, $\rho(\tilde{\nu}, \theta_i, \phi_i, \theta_r, \phi_r) = \hat{R}\, \delta(\theta_i-\theta_r) \delta(\phi_i+\pi-\phi_r)$ where $\hat{R}$ represents the Fresnel reflectivity.
+2. **Specular** — a specular scatterer scatters incident radiation like a mirror, i.e., the angle of reflection equals the angle of incidence, i.e. $\theta_r = \theta_i$. For a specular surface, $\rho(\tilde{\nu}, \theta_i, \phi_i, \theta_r, \phi_r) = \hat{R}\, \delta(\theta_i-\theta_r) \delta(\phi_i+\pi-\phi_r)$ where $\hat{R}$ represents the Fresnel reflectivity (averaged between each polarization state).
 
 In our simplified LWIR HSI model, we will treat the earth's surface as being flat, diffuse, and opaque. This allows us to relate the (directional-hemispheric) reflectivity to the (directional-hemispheric) emissivity via $\varepsilon(\tilde{\nu}) = 1 - R(\tilde{\nu})$. The emitted component of the surface-leaving radiance can be expressed as:
 
@@ -463,5 +461,5 @@ The preceding code produced a figure like the following for each combination of 
 
 ![Detailed look at the atmospheric factors affecting apparent radiance.](figures/RadOverview-aID039-eID003.png)
 
-## References
+
 [Planck's distribution]: https://en.wikipedia.org/wiki/Planck%27s_law
