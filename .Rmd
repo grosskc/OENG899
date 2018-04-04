@@ -1,1 +1,0 @@
-sed s/^```python/```{python, engine.path="\/anaconda3\/bin\/python"}/ LWIR_HSI_model.md
