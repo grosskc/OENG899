@@ -9,6 +9,4 @@
 # echo ${rCmd}
 # eval ${rCmd}
 
-# /anaconda3/bin/pandoc LWIR_HSI_model.md --to html5 --from markdown --output LWIR_HSI_model.html --smart --self-contained --standalone --section-divs --highlight-style haddock --template pandoc.html --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --css pandoc.css
-
-/anaconda3/bin/pandoc ${1} --output ${1%%.*}.html --to html5 --from markdown --smart --section-divs --highlight-style haddock --template pandoc.html --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML' --css pandoc.css
+/anaconda3/bin/pandoc ${1} --output ${1%%.*}.html --to html5 --from markdown --smart --section-divs --highlight-style haddock --template pandoc.html --css pandoc.css --mathjax --variable 'mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML'

@@ -1,7 +1,7 @@
 ---
 title: LWIR HSI Simplified Model with Example Spectra
 author: Kevin Gross
-date: 04-Apr-2018
+date: 05-Apr-2018
 ---
 ## Preliminaries
 
@@ -17,6 +17,11 @@ mpl.rcParams['text.usetex'] = True
 mpl.rcParams['font.family'] = 'serif'
 mpl.rcParams['text.latex.preamble'] = r'\usepackage[adobe-utopia]{mathdesign}, \usepackage{siunitx}'
 mpl.rcParams['lines.linewidth'] = 0.5
+
+# Define shortcuts for long LaTeX strings
+tnu = r"\tilde{\nu}"  # tilde nu
+U_wn = r"\left[\si{cm^{-1}}\right]"  # units wavenumbers
+U_rad = r"\left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]"
 
 # turn off interactive plotting
 plt.ioff()
@@ -56,7 +61,7 @@ $$\frac{R_k(\tilde{\nu})}{\pi} \cos(\hat{\Omega}_{sun},\hat{n}) \Omega_{sun} L_{
 
 where $L_d(\tilde{\nu})$ is the hemispherically averaged downwelling radiance, i.e.,
 
-$$L_d(\tilde{\nu}) = \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}) \cos(\hat{\Omega},\hat{n}) \mathrm{d}\Omega$$
+$$L_d(\tilde{\nu}) = \frac{1}{\pi} \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}) \cos(\hat{\Omega},\hat{n}) \mathrm{d}\Omega$$
 
 Putting this together gives:
 
@@ -73,14 +78,15 @@ $$B(\tilde{\nu}) = \frac{c_1 \tilde{\nu}^3}{e^{c_2 \tilde{\nu} / T} - 1}$$
 where $c_1 = 2 h c^2$ and $c_2 = h c / k_B$ are the first and second radiation constants, respectively.
 
 ```python
+# planckian distribution
 def planckian(X, T, wavelength=False):
     """
     Compute the Planckian spectral radiance distribution.
 
-    Computes the spectral radiance L at wavenumber(s) X for a system at
-    temperature(s) T using Planck's distribution function. X must be a scalar
-    or a vector. T can be of arbitrary dimensions. The shape of output L will
-    be ``(X.size, *T.shape)``.
+    Computes the spectral radiance `L` at wavenumber(s) `X` for a system at
+    temperature(s) `T` using Planck's distribution function. `X` must be a scalar
+    or a vector. `T` can be of arbitrary dimensions. The shape of output `L` will
+    be `(X.size, *T.shape)`.
 
     Parameters
     ----------
@@ -146,10 +152,9 @@ X = np.linspace(10000/12, 10000/8, 500)  # [cm^{-1}], corresponding to 8–12µm
 T = np.linspace(250, 310, 5)  # [K]
 fig = plt.figure(figsize=(6, 4))
 for i, temp in enumerate(T):
-    plt.plot(X, planckian(X, temp), label=rf"$T={temp}\,\si{{K}}$")
-plt.xlabel(r'Wavenumber, $\tilde{\nu} \left[\si{cm^{-1}}\right]$')
-plt.ylabel(
-    r'Blackbody Radiance, $B(\tilde{\nu},T)\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$')
+    plt.plot(X, planckian(X, temp), label=rf"$T={temp}$ K")
+plt.xlabel(rf'Wavenumber, ${tnu}$ ${U_wn}$')
+plt.ylabel(rf'Blackbody Radiance, $B({tnu},T)$ ${U_rad}$')
 plt.legend()
 fig.tight_layout()
 fig.savefig('figures/Planckian.png', dpi=300)
@@ -179,7 +184,7 @@ emis = f["emis"][...]  # spectral dimension first
 # atmospheric state variables, (nA, nZ)
 z = f["z"][...]      # altitude above sea level, [km]
 Tz = f["T"][...]     # temperature profile, [K]
-Ts = Tz[:, 0]         # surface temperature, [K]
+Ts = Tz[:, 0]        # surface temperature, [K]
 H2O = f["H2O"][...]  # water vapor volume mixing fraction, [ppm]
 O3 = f["O3"][...]    # ozone volume mixing fraction, [ppm]
 
@@ -225,17 +230,16 @@ plt.legend()
 plt.subplot(2, 2, 2)
 for a in ixA:
     plt.plot(X, tau[:, a], label=fr'atmID\#{a}')
-plt.xlabel(r'Wavenumbers, $\tilde{\nu}$ [$\mathrm{cm^{-1}}$]')
-plt.ylabel(r'Transmittance, $\tau(\tilde{\nu})$')
+plt.xlabel(rf'Wavenumber, ${tnu}$ ${U_wn}$')
+plt.ylabel(rf'Transmittance, $\tau({tnu})$')
 plt.legend()
 
 # path radiance
 plt.subplot(2, 2, 4)
 for a in ixA:
     plt.plot(X, La[:, a], label=fr'atmID\#{a}')
-plt.xlabel(r'Wavenumbers, $\tilde{\nu}$ [$\mathrm{cm^{-1}}$]')
-plt.ylabel(
-    r'Path Radiance, $L_a(\tilde{\nu})$ [$\si{\micro W/(cm^2.sr.cm^{-1}}$]')
+plt.xlabel(rf'Wavenumber, ${tnu}$ ${U_wn}$')
+plt.ylabel(rf'Path Radiance, $L_a({tnu})$ ${U_rad}$')
 plt.legend()
 fig.tight_layout()
 fig.savefig('figures/AtmosInputsOutputs.png', dpi=300)
@@ -258,6 +262,7 @@ This is a simple implementation of the LWIR HSI model desccribed above. However,
 Use broadcasting to efficiently generate every possible apparent radiance spectrum given each material and atmospheric state. The convention will be `L.shape = (nX, nE, nA)` where `nX` is the number of spectral channels (`X.size`), `nE` is the number of materials (`emis.shape[1]`), and `nA` is the number of atmospheric states (`tau.shape[1]`). Alternatively, if a temperature range of length `nT` is specified, the apparent spectral radiance dimensions will be `L.shape = (nX, nE, nA, nT)`.
 
 ```python
+# function to compute apparent radiances efficiently
 def compute_radiance(X, emis, Ts, tau, La, Ld, dT=None):
     r"""
     Compute spectral radiance for given emissivities and atmospheric states.
@@ -326,9 +331,8 @@ def plot_apparent_rad(eID=[0], aID=[0], k=0):
         for i, a in enumerate(aID):
             plt.plot(X, L[:, eID, a], label=fr"Atm ID \#{aID[i]}")
             plt.title(f'k={k}, Material ID = {eID}')
-    plt.xlabel(r"$\tilde{\nu}\,\,\left[\si{cm^{-1}}\right]$")
-    plt.ylabel(
-        r"$L_{o,k}(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$")
+    plt.xlabel(rf'${tnu}$ ${U_wn}$')
+    plt.ylabel(rf"$L_{{o,k}}({tnu})$ ${U_rad}$")
     plt.legend()
     return None
 
@@ -384,31 +388,27 @@ ix = tau < 1e-4
 Ld_ = np.copy(Ld)
 Ld_[ix] = np.nan
 
-# Plot apparent spectral radiance and the various radiative transfer terms
-# which affect the measured signature -- also show atmospheric state parameters
-
+# Plot apparent spectral radiance and various radiative transfer terms
 def plot_radiance(atmID=0, emisID=0):
     fig = plt.figure(figsize=(8.0, 10.0))
     # 1st plot - apparent radiance
     plt.subplot(2, 2, 1)
     lbl = f"Atmos \#{atmID}, Matl \#{emisID}"
     plt.plot(X, L[:, emisID, atmID], label=lbl)
-    plt.ylabel(
-        r"$L(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$")
-    plt.xlabel(r"$\tilde{\nu}\,\,\left[\si{cm^{-1}}\right]$")
+    plt.ylabel(rf"$L({tnu})$ ${U_rad}$")
+    plt.xlabel(rf'${tnu}$ ${U_wn}$')
     plt.legend()
 
     # 2nd plot - atmospheric radiation terms
     ax1 = plt.subplot(2, 2, 2)
     a1 = ax1.plot(X, tau[:, atmID], color='C0', label=r'$\tau$')
-    plt.ylabel(r"$\tau(\tilde{\nu})$")
-    plt.xlabel(r"$\tilde{\nu}\,\,\left[\si{cm^{-1}}\right]$")
+    plt.ylabel(rf"$\tau({tnu})$")
+    plt.xlabel(rf'${tnu}$ ${U_wn}$')
     ax1.legend()
     ax2 = ax1.twinx()
     a2 = ax2.plot(X, La[:, atmID], color='C1', label="$L_a$")
     a3 = ax2.plot(X, Ld_[:, atmID], color='C2', label="$L_d$")
-    plt.ylabel(
-        r'$L_{a,d}(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$')
+    plt.ylabel(rf'$L_{{a,d}}({tnu})$ ${U_rad}$')
     leg = a1+a2+a3
     labs = [l.get_label() for l in leg]
     ax1.legend(leg, labs, loc=0)
@@ -420,9 +420,8 @@ def plot_radiance(atmID=0, emisID=0):
     a1 = plt.plot(X, B, label=f"Planckian, T={Ts[atmID]:0.1f} K")
     a2 = plt.plot(X, emis[:, emisID] * B, label="Thermal Emission")
     a3 = plt.plot(X, (1 - emis[:, emisID]) * Ld_[:, atmID], label="Reflected")
-    plt.xlabel(r"$\tilde{\nu}\,\,\left[\si{cm^{-1}}\right]$")
-    plt.ylabel(
-        r"$L_s(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$")
+    plt.xlabel(rf'${tnu}$ ${U_wn}$')
+    plt.ylabel(rf'$L_s({tnu})$ ${U_rad}$')
     ax2 = ax1.twinx()
     a4 = plt.plot(X, emis[:, emisID], color='C3', label="Emissivity")
     plt.ylabel('Emissivity')
@@ -448,7 +447,6 @@ def plot_radiance(atmID=0, emisID=0):
     ax1.legend(leg, labs, loc=0)
     fig.tight_layout()
     return fig
-
 
 # loop over each material and atmospheric state
 for a in aIDs(N_atm):

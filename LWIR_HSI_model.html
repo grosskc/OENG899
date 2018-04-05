@@ -64,7 +64,7 @@ code > span.in { color: #008000; } /* Information */
 
 <h1 class="title toc-ignore">LWIR HSI Simplified Model with Example Spectra</h1>
 <h4 class="author"><em>Kevin Gross</em></h4>
-<h4 class="date"><em>04-Apr-2018</em></h4>
+<h4 class="date"><em>05-Apr-2018</em></h4>
 
 
 
@@ -81,6 +81,11 @@ mpl.rcParams[<span class="st">&#39;text.usetex&#39;</span>] <span class="op">=</
 mpl.rcParams[<span class="st">&#39;font.family&#39;</span>] <span class="op">=</span> <span class="st">&#39;serif&#39;</span>
 mpl.rcParams[<span class="st">&#39;text.latex.preamble&#39;</span>] <span class="op">=</span> <span class="vs">r&#39;\usepackage[adobe-utopia]</span><span class="sc">{mathdesign}</span><span class="vs">, \usepackage</span><span class="sc">{siunitx}</span><span class="vs">&#39;</span>
 mpl.rcParams[<span class="st">&#39;lines.linewidth&#39;</span>] <span class="op">=</span> <span class="fl">0.5</span>
+
+<span class="co"># Define shortcuts for long LaTeX strings</span>
+tnu <span class="op">=</span> <span class="vs">r&quot;\tilde{\nu}&quot;</span>  <span class="co"># tilde nu</span>
+U_wn <span class="op">=</span> <span class="vs">r&quot;\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]&quot;</span>  <span class="co"># units wavenumbers</span>
+U_rad <span class="op">=</span> <span class="vs">r&quot;\left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]&quot;</span>
 
 <span class="co"># turn off interactive plotting</span>
 plt.ioff()</code></pre></div>
@@ -105,7 +110,7 @@ plt.ioff()</code></pre></div>
 <p>which in the Lambertian limit is</p>
 <p><span class="math display">\[\frac{R_k(\tilde{\nu})}{\pi} \cos(\hat{\Omega}_{sun},\hat{n}) \Omega_{sun} L_{sun}(\tilde{\nu}) + \frac{(2\pi-\Omega_{sun})}{2\pi}R_k(\tilde{\nu}) L_d(\tilde{\nu}) \simeq R_k(\tilde{\nu}) L_d(\tilde{\nu})\]</span></p>
 <p>where <span class="math inline">\(L_d(\tilde{\nu})\)</span> is the hemispherically averaged downwelling radiance, i.e.,</p>
-<p><span class="math display">\[L_d(\tilde{\nu}) = \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}) \cos(\hat{\Omega},\hat{n}) \mathrm{d}\Omega\]</span></p>
+<p><span class="math display">\[L_d(\tilde{\nu}) = \frac{1}{\pi} \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}) \cos(\hat{\Omega},\hat{n}) \mathrm{d}\Omega\]</span></p>
 <p>Putting this together gives:</p>
 <p><span class="math display">\[L_{o,k}(\tilde{\nu}) = \tau(\tilde{\nu}) \left[ (1-R_k(\tilde{\nu})) B(\tilde{\nu},T_k) + R_k(\tilde{\nu}) L_d(\tilde{\nu}) \right] + L_a(\tilde{\nu})\]</span></p>
 <p>where the directionality has been dropped for easier notation (not because it isn’t important).</p>
@@ -115,14 +120,15 @@ plt.ioff()</code></pre></div>
 <p><a href="https://en.wikipedia.org/wiki/Planck%27s_law">Planck’s distribution</a>, <span class="math inline">\(B(\tilde{\nu})\)</span>, gives the spectral radiance produced by an ideal blackbody radiator at a temperature <span class="math inline">\(T\)</span>. It is given by</p>
 <p><span class="math display">\[B(\tilde{\nu}) = \frac{c_1 \tilde{\nu}^3}{e^{c_2 \tilde{\nu} / T} - 1}\]</span></p>
 <p>where <span class="math inline">\(c_1 = 2 h c^2\)</span> and <span class="math inline">\(c_2 = h c / k_B\)</span> are the first and second radiation constants, respectively.</p>
-<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> planckian(X, T, wavelength<span class="op">=</span><span class="va">False</span>):
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># planckian distribution</span>
+<span class="kw">def</span> planckian(X, T, wavelength<span class="op">=</span><span class="va">False</span>):
     <span class="co">&quot;&quot;&quot;</span>
 <span class="co">    Compute the Planckian spectral radiance distribution.</span>
 
-<span class="co">    Computes the spectral radiance L at wavenumber(s) X for a system at</span>
-<span class="co">    temperature(s) T using Planck&#39;s distribution function. X must be a scalar</span>
-<span class="co">    or a vector. T can be of arbitrary dimensions. The shape of output L will</span>
-<span class="co">    be ``(X.size, *T.shape)``.</span>
+<span class="co">    Computes the spectral radiance `L` at wavenumber(s) `X` for a system at</span>
+<span class="co">    temperature(s) `T` using Planck&#39;s distribution function. `X` must be a scalar</span>
+<span class="co">    or a vector. `T` can be of arbitrary dimensions. The shape of output `L` will</span>
+<span class="co">    be `(X.size, *T.shape)`.</span>
 
 <span class="co">    Parameters</span>
 <span class="co">    ----------</span>
@@ -184,10 +190,9 @@ X <span class="op">=</span> np.linspace(<span class="dv">10000</span><span class
 T <span class="op">=</span> np.linspace(<span class="dv">250</span>, <span class="dv">310</span>, <span class="dv">5</span>)  <span class="co"># [K]</span>
 fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="dv">6</span>, <span class="dv">4</span>))
 <span class="cf">for</span> i, temp <span class="kw">in</span> <span class="bu">enumerate</span>(T):
-    plt.plot(X, planckian(X, temp), label<span class="op">=</span><span class="vs">rf&quot;$T=</span><span class="sc">{</span>temp<span class="sc">}</span><span class="vs">\,\si</span><span class="ch">{{</span><span class="vs">K}}$&quot;</span>)
-plt.xlabel(<span class="vs">r&#39;Wavenumber, $\tilde{\nu} \left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&#39;</span>)
-plt.ylabel(
-    <span class="vs">r&#39;Blackbody Radiance, $B(\tilde{\nu},T)\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&#39;</span>)
+    plt.plot(X, planckian(X, temp), label<span class="op">=</span><span class="vs">rf&quot;$T=</span><span class="sc">{</span>temp<span class="sc">}</span><span class="vs">$ K&quot;</span>)
+plt.xlabel(<span class="vs">rf&#39;Wavenumber, $</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
+plt.ylabel(<span class="vs">rf&#39;Blackbody Radiance, $B(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">,T)$ $</span><span class="sc">{</span>U_rad<span class="sc">}</span><span class="vs">$&#39;</span>)
 plt.legend()
 fig.tight_layout()
 fig.savefig(<span class="st">&#39;figures/Planckian.png&#39;</span>, dpi<span class="op">=</span><span class="dv">300</span>)</code></pre></div>
@@ -215,7 +220,7 @@ emis <span class="op">=</span> f[<span class="st">&quot;emis&quot;</span>][...] 
 <span class="co"># atmospheric state variables, (nA, nZ)</span>
 z <span class="op">=</span> f[<span class="st">&quot;z&quot;</span>][...]      <span class="co"># altitude above sea level, [km]</span>
 Tz <span class="op">=</span> f[<span class="st">&quot;T&quot;</span>][...]     <span class="co"># temperature profile, [K]</span>
-Ts <span class="op">=</span> Tz[:, <span class="dv">0</span>]         <span class="co"># surface temperature, [K]</span>
+Ts <span class="op">=</span> Tz[:, <span class="dv">0</span>]        <span class="co"># surface temperature, [K]</span>
 H2O <span class="op">=</span> f[<span class="st">&quot;H2O&quot;</span>][...]  <span class="co"># water vapor volume mixing fraction, [ppm]</span>
 O3 <span class="op">=</span> f[<span class="st">&quot;O3&quot;</span>][...]    <span class="co"># ozone volume mixing fraction, [ppm]</span>
 
@@ -257,17 +262,16 @@ plt.legend()
 plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>)
 <span class="cf">for</span> a <span class="kw">in</span> ixA:
     plt.plot(X, tau[:, a], label<span class="op">=</span><span class="vs">fr&#39;atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
-plt.xlabel(<span class="vs">r&#39;Wavenumbers, $\tilde{\nu}$ [$\mathrm{cm^{-1</span><span class="sc">}}</span><span class="vs">$]&#39;</span>)
-plt.ylabel(<span class="vs">r&#39;Transmittance, $\tau(\tilde{\nu})$&#39;</span>)
+plt.xlabel(<span class="vs">rf&#39;Wavenumber, $</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
+plt.ylabel(<span class="vs">rf&#39;Transmittance, $\tau(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$&#39;</span>)
 plt.legend()
 
 <span class="co"># path radiance</span>
 plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">4</span>)
 <span class="cf">for</span> a <span class="kw">in</span> ixA:
     plt.plot(X, La[:, a], label<span class="op">=</span><span class="vs">fr&#39;atmID\#</span><span class="sc">{a}</span><span class="vs">&#39;</span>)
-plt.xlabel(<span class="vs">r&#39;Wavenumbers, $\tilde{\nu}$ [$\mathrm{cm^{-1</span><span class="sc">}}</span><span class="vs">$]&#39;</span>)
-plt.ylabel(
-    <span class="vs">r&#39;Path Radiance, $L_a(\tilde{\nu})$ [$\si{\micro W/(cm^2.sr.cm^{-1</span><span class="sc">}}</span><span class="vs">$]&#39;</span>)
+plt.xlabel(<span class="vs">rf&#39;Wavenumber, $</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
+plt.ylabel(<span class="vs">rf&#39;Path Radiance, $L_a(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$ $</span><span class="sc">{</span>U_rad<span class="sc">}</span><span class="vs">$&#39;</span>)
 plt.legend()
 fig.tight_layout()
 fig.savefig(<span class="st">&#39;figures/AtmosInputsOutputs.png&#39;</span>, dpi<span class="op">=</span><span class="dv">300</span>)</code></pre></div>
@@ -287,7 +291,8 @@ fig.savefig(<span class="st">&#39;figures/AtmosInputsOutputs.png&#39;</span>, dp
 <li>simple BRDF effects (for more realistic distributions of effective emissivities)</li>
 </ul>
 <p>Use broadcasting to efficiently generate every possible apparent radiance spectrum given each material and atmospheric state. The convention will be <code>L.shape = (nX, nE, nA)</code> where <code>nX</code> is the number of spectral channels (<code>X.size</code>), <code>nE</code> is the number of materials (<code>emis.shape[1]</code>), and <code>nA</code> is the number of atmospheric states (<code>tau.shape[1]</code>). Alternatively, if a temperature range of length <code>nT</code> is specified, the apparent spectral radiance dimensions will be <code>L.shape = (nX, nE, nA, nT)</code>.</p>
-<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> compute_radiance(X, emis, Ts, tau, La, Ld, dT<span class="op">=</span><span class="va">None</span>):
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># function to compute apparent radiances efficiently</span>
+<span class="kw">def</span> compute_radiance(X, emis, Ts, tau, La, Ld, dT<span class="op">=</span><span class="va">None</span>):
     <span class="co">r&quot;&quot;&quot;</span>
 <span class="co">    Compute spectral radiance for given emissivities and atmospheric states.</span>
 
@@ -352,9 +357,8 @@ L <span class="op">=</span> compute_radiance(X, emis, Ts, tau, La, Ld)</code></p
         <span class="cf">for</span> i, a <span class="kw">in</span> <span class="bu">enumerate</span>(aID):
             plt.plot(X, L[:, eID, a], label<span class="op">=</span><span class="vs">fr&quot;Atm ID \#</span><span class="sc">{</span>aID[i]<span class="sc">}</span><span class="vs">&quot;</span>)
             plt.title(<span class="ss">f&#39;k=</span><span class="sc">{k}</span><span class="ss">, Material ID = </span><span class="sc">{</span>eID<span class="sc">}</span><span class="ss">&#39;</span>)
-    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
-    plt.ylabel(
-        <span class="vs">r&quot;$L_{o,k}(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&quot;</span>)
+    plt.xlabel(<span class="vs">rf&#39;$</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
+    plt.ylabel(<span class="vs">rf&quot;$L_</span><span class="ch">{{</span><span class="vs">o,k}}(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$ $</span><span class="sc">{</span>U_rad<span class="sc">}</span><span class="vs">$&quot;</span>)
     plt.legend()
     <span class="cf">return</span> <span class="va">None</span>
 
@@ -405,31 +409,27 @@ ix <span class="op">=</span> tau <span class="op">&lt;</span> <span class="fl">1
 Ld_ <span class="op">=</span> np.copy(Ld)
 Ld_[ix] <span class="op">=</span> np.nan
 
-<span class="co"># Plot apparent spectral radiance and the various radiative transfer terms</span>
-<span class="co"># which affect the measured signature -- also show atmospheric state parameters</span>
-
+<span class="co"># Plot apparent spectral radiance and various radiative transfer terms</span>
 <span class="kw">def</span> plot_radiance(atmID<span class="op">=</span><span class="dv">0</span>, emisID<span class="op">=</span><span class="dv">0</span>):
     fig <span class="op">=</span> plt.figure(figsize<span class="op">=</span>(<span class="fl">8.0</span>, <span class="fl">10.0</span>))
     <span class="co"># 1st plot - apparent radiance</span>
     plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>)
     lbl <span class="op">=</span> <span class="ss">f&quot;Atmos \#</span><span class="sc">{</span>atmID<span class="sc">}</span><span class="ss">, Matl \#</span><span class="sc">{</span>emisID<span class="sc">}</span><span class="ss">&quot;</span>
     plt.plot(X, L[:, emisID, atmID], label<span class="op">=</span>lbl)
-    plt.ylabel(
-        <span class="vs">r&quot;$L(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&quot;</span>)
-    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
+    plt.ylabel(<span class="vs">rf&quot;$L(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$ $</span><span class="sc">{</span>U_rad<span class="sc">}</span><span class="vs">$&quot;</span>)
+    plt.xlabel(<span class="vs">rf&#39;$</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
     plt.legend()
 
     <span class="co"># 2nd plot - atmospheric radiation terms</span>
     ax1 <span class="op">=</span> plt.subplot(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>)
     a1 <span class="op">=</span> ax1.plot(X, tau[:, atmID], color<span class="op">=</span><span class="st">&#39;C0&#39;</span>, label<span class="op">=</span><span class="vs">r&#39;$\tau$&#39;</span>)
-    plt.ylabel(<span class="vs">r&quot;$\tau(\tilde{\nu})$&quot;</span>)
-    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
+    plt.ylabel(<span class="vs">rf&quot;$\tau(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$&quot;</span>)
+    plt.xlabel(<span class="vs">rf&#39;$</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
     ax1.legend()
     ax2 <span class="op">=</span> ax1.twinx()
     a2 <span class="op">=</span> ax2.plot(X, La[:, atmID], color<span class="op">=</span><span class="st">&#39;C1&#39;</span>, label<span class="op">=</span><span class="st">&quot;$L_a$&quot;</span>)
     a3 <span class="op">=</span> ax2.plot(X, Ld_[:, atmID], color<span class="op">=</span><span class="st">&#39;C2&#39;</span>, label<span class="op">=</span><span class="st">&quot;$L_d$&quot;</span>)
-    plt.ylabel(
-        <span class="vs">r&#39;$L_{a,d}(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&#39;</span>)
+    plt.ylabel(<span class="vs">rf&#39;$L_</span><span class="ch">{{</span><span class="vs">a,d}}(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$ $</span><span class="sc">{</span>U_rad<span class="sc">}</span><span class="vs">$&#39;</span>)
     leg <span class="op">=</span> a1<span class="op">+</span>a2<span class="op">+</span>a3
     labs <span class="op">=</span> [l.get_label() <span class="cf">for</span> l <span class="kw">in</span> leg]
     ax1.legend(leg, labs, loc<span class="op">=</span><span class="dv">0</span>)
@@ -441,9 +441,8 @@ Ld_[ix] <span class="op">=</span> np.nan
     a1 <span class="op">=</span> plt.plot(X, B, label<span class="op">=</span><span class="ss">f&quot;Planckian, T=</span><span class="sc">{Ts</span>[atmID]<span class="sc">:0.1f}</span><span class="ss"> K&quot;</span>)
     a2 <span class="op">=</span> plt.plot(X, emis[:, emisID] <span class="op">*</span> B, label<span class="op">=</span><span class="st">&quot;Thermal Emission&quot;</span>)
     a3 <span class="op">=</span> plt.plot(X, (<span class="dv">1</span> <span class="op">-</span> emis[:, emisID]) <span class="op">*</span> Ld_[:, atmID], label<span class="op">=</span><span class="st">&quot;Reflected&quot;</span>)
-    plt.xlabel(<span class="vs">r&quot;$\tilde{\nu}\,\,\left[\si{cm^{-1</span><span class="sc">}}</span><span class="vs">\right]$&quot;</span>)
-    plt.ylabel(
-        <span class="vs">r&quot;$L_s(\tilde{\nu})\,\, \left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]$&quot;</span>)
+    plt.xlabel(<span class="vs">rf&#39;$</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">$ $</span><span class="sc">{</span>U_wn<span class="sc">}</span><span class="vs">$&#39;</span>)
+    plt.ylabel(<span class="vs">rf&#39;$L_s(</span><span class="sc">{</span>tnu<span class="sc">}</span><span class="vs">)$ $</span><span class="sc">{</span>U_rad<span class="sc">}</span><span class="vs">$&#39;</span>)
     ax2 <span class="op">=</span> ax1.twinx()
     a4 <span class="op">=</span> plt.plot(X, emis[:, emisID], color<span class="op">=</span><span class="st">&#39;C3&#39;</span>, label<span class="op">=</span><span class="st">&quot;Emissivity&quot;</span>)
     plt.ylabel(<span class="st">&#39;Emissivity&#39;</span>)
@@ -469,7 +468,6 @@ Ld_[ix] <span class="op">=</span> np.nan
     ax1.legend(leg, labs, loc<span class="op">=</span><span class="dv">0</span>)
     fig.tight_layout()
     <span class="cf">return</span> fig
-
 
 <span class="co"># loop over each material and atmospheric state</span>
 <span class="cf">for</span> a <span class="kw">in</span> aIDs(N_atm):
