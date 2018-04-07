@@ -18,7 +18,7 @@ if __name__ == '__main__':
         with open(fname + ext, 'r') as f:
             fileContentsLines = f.readlines()
 
-        # Determine line numbers bracketing code blocks 
+        # Determine line numbers bracketing code blocks
         codeStart = []
         codeStop = []
         lineCounter = 0

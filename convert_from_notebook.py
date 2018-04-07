@@ -23,7 +23,7 @@ if __name__ == '__main__':
         with open(fname + ext, 'r') as f:
             fileContentsLines = f.readlines()
 
-        # Remove "#' " 
+        # Remove "#' "
         # Also do "#'" in case trailing space was removed
         for i, _ in enumerate(fileContentsLines):
             fileContentsLines[i].lstrip("#' ")
