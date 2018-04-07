@@ -1,3 +1,13 @@
+#' ---
+#' title: LWIR HSI Simplified Model with Example Spectra
+#' author: Kevin Gross
+#' date: 05-Apr-2018
+#' ---
+#' ## Preliminaries
+#' 
+#' ```python
+
+# %%
 # Import necessary packages
 import numpy as np
 import matplotlib as mpl
@@ -15,9 +25,64 @@ tnu = r"\tilde{\nu}"  # tilde nu
 U_wn = r"\left[\si{cm^{-1}}\right]"  # units wavenumbers
 U_rad = r"\left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]"
 
-# turn off interactive plotting
-plt.ioff()
+# turn off interactive plots when run as a script from commandline
+if __name__ == '__main__':
+    plt.ioff()
+#' ```
+#' 
+#' ## Simplest LWIR HSI model
+#' 
+#' Under clear sky conditions (no clouds, haze, etc.), scattering can be ignored in the long-wave infrared spectral region (8–12µm), greatly simplifying the radiative transfer model needed to interpret HSI data. Under these simplifying conditions, the apparent spectral radiance $L_{o,i}(\tilde{\nu})$ — $o$ means *observed*, and $k$ represents pixel index — of a single pixel in a space-born sensor can be expressed as:
+#' 
+#' $$L_{o,k}(\tilde{\nu}, \hat{\Omega}_r) = \tau(\tilde{\nu}, \hat{\Omega}_r) L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) + L_a(\tilde{\nu}, \hat{\Omega}_r)$$
+#' 
+#' Here, $L_{s,k}(\tilde{\nu}, \hat{\Omega}_r)$ represents the surface-leaving radiance traveling in the direction $\hat{\Omega}_r$ of our sensor from the $k^{\mathrm{th}}$ object-space pixel, and it is attenuated by the atmospheric transmittance $\tau(\tilde{\nu}, \hat{\Omega}_r)$ and augmented by atmospheric path radiance $L_a(\tilde{\nu}, \hat{\Omega}_r)$. Further assuming that the pixel is comprised of a single, pure material constituent, this can be expanded into two components, the thermally emitted radiance and the reflected radiance, $L_{e,k}(\tilde{\nu}, \hat{\Omega}_r)$ and $L_{r,k}(\tilde{\nu}, \hat{\Omega}_r)$, respectively.
+#' 
+#' In general, both the optical properties and surface characteristics of a material govern how it thermally generates and scatters (i.e., reflects) radiation. The net effect of this is captured by the spectral bi-directional reflectance distribution function (BRDF), $\rho_{\mathrm{BRDF}}(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r)$. The BRDF accounts for the energy arriving from the direction $\hat{\Omega}_i$ that is scattered into the direction $\hat{\Omega}_r$, and $\rho(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r)$ has units $\mathrm{sr^{-1}}$. Going forward, the subscript BRDF will be dropped.
+#' 
+#' There are two limiting forms for the BRDF that are worth mentioning:
+#' 
+#' 1. **Diffuse** — a diffuse (i.e., Lambertian) surface uniformly scatters radiation from an arbitrary incidence direction equally into all outgoing directions. A diffuse surface illuminated from an arbitrary location has the same brightness from any viewing location. The BRDF can be expressed as $\rho(\tilde{\nu}, \hat{\Omega}_i, \hat{\Omega}_r) = R/\pi$ where $R$ represents the directional-hemispheric reflectivity.
+#' 
+#' 2. **Specular** — a specular scatterer scatters incident radiation like a mirror, i.e., the angle of reflection equals the angle of incidence, i.e. $\theta_r = \theta_i$. For a specular surface, $\rho(\tilde{\nu}, \theta_i, \phi_i, \theta_r, \phi_r) = \hat{R}\, \delta(\theta_i-\theta_r) \delta(\phi_i+\pi-\phi_r)$ where $\hat{R}$ represents the Fresnel reflectivity (averaged between each polarization state).
+#' 
+#' In our simplified LWIR HSI model, we will treat the earth's surface as being flat, diffuse, and opaque. This allows us to relate the (directional-hemispheric) reflectivity to the (directional-hemispheric) emissivity via $\varepsilon(\tilde{\nu}) = 1 - R(\tilde{\nu})$. The emitted component of the surface-leaving radiance can be expressed as:
+#' 
+#' $$L_{e,k}(\tilde{\nu}, \hat{\Omega}_r) = B(\tilde{\nu},T_i) \left[ 1 - \int_{\frac{2\pi}{\mathrm{sr}}} \rho_k(\hat{\Omega}_r, \hat{\Omega}_i) \cos(\hat{\Omega}_i,\hat{n}) \mathrm{d}\Omega_i\right] \simeq \left(1-R_k(\tilde{\nu})\right) B(\tilde{\nu},T_i)$$
+#' 
+#' The scattered component of the surface-leaving radiance can be expressed as
+#' 
+#' $$L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) = \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}_i) \rho_k(\hat{\Omega}_r, \hat{\Omega}_i) \cos(\hat{\Omega}_i,\hat{n}) \mathrm{d}\Omega_i$$
+#' 
+#' where $L_d(\tilde{\nu},\hat{\Omega}_i)$ is the downwelling (space-to-earth) spectral radiance that includes both solar and skyshine components. Often these two components are broken out so that
+#' 
+#' $$L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) = \rho_k(\hat{\Omega}_r, \hat{\Omega}_{sun}) L_{sun}(\tilde{\nu}) \cos(\hat{\Omega}_{sun},\hat{n}) \Omega_{sun} + \int_{\Omega_{sky}} L_d(\tilde{\nu},\hat{\Omega}_i) \rho_k(\hat{\Omega}_r, \hat{\Omega}_i) \cos(\hat{\Omega}_i,\hat{n}) \mathrm{d}\Omega_i$$
+#' 
+#' which in the Lambertian limit is
+#' 
+#' $$\frac{R_k(\tilde{\nu})}{\pi} \cos(\hat{\Omega}_{sun},\hat{n}) \Omega_{sun} L_{sun}(\tilde{\nu}) + \frac{(2\pi-\Omega_{sun})}{2\pi}R_k(\tilde{\nu}) L_d(\tilde{\nu}) \simeq R_k(\tilde{\nu}) L_d(\tilde{\nu})$$
+#' 
+#' where $L_d(\tilde{\nu})$ is the hemispherically averaged downwelling radiance, i.e.,
+#' 
+#' $$L_d(\tilde{\nu}) = \frac{1}{\pi} \int_{\frac{2\pi}{\mathrm{sr}}} L_d(\tilde{\nu},\hat{\Omega}) \cos(\hat{\Omega},\hat{n}) \mathrm{d}\Omega$$
+#' 
+#' Putting this together gives:
+#' 
+#' $$L_{o,k}(\tilde{\nu}) = \tau(\tilde{\nu}) \left[ (1-R_k(\tilde{\nu})) B(\tilde{\nu},T_k) + R_k(\tilde{\nu}) L_d(\tilde{\nu}) \right] + L_a(\tilde{\nu})$$
+#' 
+#' where the directionality has been dropped for easier notation (not because it isn't important).
+#' 
+#' ## Planckian spectral distribution for blackbody radiation
+#' 
+#' [Planck's distribution][], $B(\tilde{\nu})$, gives the spectral radiance produced by an ideal blackbody radiator at a temperature $T$. It is given by
+#' 
+#' $$B(\tilde{\nu}) = \frac{c_1 \tilde{\nu}^3}{e^{c_2 \tilde{\nu} / T} - 1}$$
+#' 
+#' where $c_1 = 2 h c^2$ and $c_2 = h c / k_B$ are the first and second radiation constants, respectively.
+#' 
+#' ```python
 
+# %%
 # planckian distribution
 def planckian(X, T, wavelength=False):
     """
@@ -56,10 +121,8 @@ def planckian(X, T, wavelength=False):
     # h  = 6.6260689633e-34 # [J s]       - Planck's constant
     # c  = 299792458        # [m/s]       - speed of light
     # k  = 1.380650424e-23  # [J/K]       - Boltzman constant
-    # [J m^2 / s] - 1st radiation constant, c1 = 2 * h * c**2
-    c1 = 1.19104295315e-16
-    # [m K]       - 2nd radiation constant, c2 = h * c / k
-    c2 = 1.43877736830e-02
+    c1 = 1.19104295315e-16  # [J m^2 / s] - 1st radiation constant, c1 = 2 * h * c**2
+    c2 = 1.43877736830e-02  # [m K]       - 2nd radiation constant, c2 = h * c / k
 
     # Ensure inputs are NumPy arrays
     X = np.asarray(X).flatten()  # X must be 1D array
@@ -71,8 +134,7 @@ def planckian(X, T, wavelength=False):
     T = T.flatten()[np.newaxis, :]
 
     # Compute Planck's spectral radiance distribution
-    # compute using wavelength (with hueristics)
-    if wavelength or np.mean(X) < 50:
+    if wavelength or np.mean(X) < 50:  # compute using wavelength (with hueristics)
         if not wavelength:
             print('Assumes X given in µm; returning L in µF')
         X *= 1e-6  # convert to m from µm
@@ -85,8 +147,13 @@ def planckian(X, T, wavelength=False):
 
     # Reshape L if necessary and return
     return np.reshape(L, (X.size, *dimsT))
+#' ```
+#' 
+#' Let's visualize the Planckian distribution in the LWIR over a range of atmospheric temperatures.
+#' 
+#' ```python
 
-
+# %%
 # plot Planck's distribution over range of atmospheric temperatures
 X = np.linspace(10000/12, 10000/8, 500)  # [cm^{-1}], corresponding to 8–12µm
 T = np.linspace(250, 310, 5)  # [K]
@@ -98,7 +165,17 @@ plt.ylabel(rf'Blackbody Radiance, $B({tnu},T)$ ${U_rad}$')
 plt.legend()
 fig.tight_layout()
 fig.savefig('figures/Planckian.png', dpi=300)
+#' ```
+#' 
+#' ![Planckian distribution in the LWIR for a range of terrestrial temperatures.](figures/Planckian.png)
+#' 
+#' ## Load emissivity and atmospheric radiative transfer database
+#' 
+#' We have a set of material emissivities and atmospheric radiative transfer terms stored in a (somewhat) self-documented HDF5 file. However, this is a *preliminary* set of HSI inputs useful for exploring the impact of emissivity and the atmosphere on a remotely-sensed measurement. We have many more emissivity curves for natural and man-made materials, and many, many more atmospheric radiative transfer inputs and outputs available. Much more work will be going into this aspect of the LWIR HSI model.
+#' 
+#' ```python
 
+# %%
 # Load H5 file
 f = h5py.File("LWIR_HSI_inputs.h5", "r")
 print(list(f.keys()))
@@ -127,7 +204,13 @@ Ld = f["Ld"][...]    # downwelling radiance, [µW/(cm^2 sr cm^{-1})]
 
 # close H5 file
 f.close()
+#' ```
+#' 
+#' The atmospheric input variables and output variables are both available. Let's compare a few different "inputs" and "outputs". We pick three atmospheric states corresponding to the lowest, median, and highest spectrally-averaged transmittance.
+#' 
+#' ```python
 
+# %%
 # take the first, middle, and last atmospheric states (which have been sorted)
 # byt the spectrally-averaged transmittance
 nA = Tz.shape[0]
@@ -171,7 +254,27 @@ plt.ylabel(rf'Path Radiance, $L_a({tnu})$ ${U_rad}$')
 plt.legend()
 fig.tight_layout()
 fig.savefig('figures/AtmosInputsOutputs.png', dpi=300)
+#' ```
+#' 
+#' On the left panel are the temperature and mixing fraction altitude profiles for the three atmospheric states previously described. Notice that the high temperature, high moisture atmosphere produces a strongly-attenuated transmittance and a corresponding large path radiance. Similarly, the cold, dry atmosphere is highly transparent and a much weaker radiator.
+#' 
+#' ![Atmospheric state variables (left panels) and the corresponding radiative transfer terms (right panels).](figures/AtmosInputsOutputs.png)
+#' 
+#' ## Python radiative transfer model
+#' 
+#' This is a simple implementation of the LWIR HSI model desccribed above. However, there are realistic effects that still need to be incorporated so our efforts can be made more relevant to applications of interest. An incomplete list of things would be nice to add, in no particular order, are:
+#' 
+#' * subpixel targets
+#' * partial cloud cover
+#' * solar illumination (for extension into the MWIR 2-5µm)
+#' * scattering (for extension into the Vis/SWIR 0.4-2µm)
+#' * simple BRDF effects (for more realistic distributions of effective emissivities)
+#' 
+#' Use broadcasting to efficiently generate every possible apparent radiance spectrum given each material and atmospheric state. The convention will be `L.shape = (nX, nE, nA)` where `nX` is the number of spectral channels (`X.size`), `nE` is the number of materials (`emis.shape[1]`), and `nA` is the number of atmospheric states (`tau.shape[1]`). Alternatively, if a temperature range of length `nT` is specified, the apparent spectral radiance dimensions will be `L.shape = (nX, nE, nA, nT)`.
+#' 
+#' ```python
 
+# %%
 # function to compute apparent radiances efficiently
 def compute_radiance(X, emis, Ts, tau, La, Ld, dT=None):
     r"""
@@ -223,7 +326,15 @@ def compute_radiance(X, emis, Ts, tau, La, Ld, dT=None):
 
 # Compute radiance for given emis and atmos rad txfr inputs
 L = compute_radiance(X, emis, Ts, tau, La, Ld)
+#' ```
+#' 
+#' ## The discrimination challenge
+#' 
+#' The atmospheric state has big "lever arm" on the variance of apparent radiance. To appreciate this, we develop some functions to visualize the impact of emissivity and atmospheric state on apparent radiance.
+#' 
+#' ```python
 
+# %%
 # helper plotting tool
 def plot_apparent_rad(eID=[0], aID=[0], k=0):
     if len(eID) > 1:
@@ -272,7 +383,23 @@ for i, a in enumerate(aIDs(N_atm)):
     plot_apparent_rad(eID=eIDs, aID=[a])
 fig.tight_layout()
 fig.savefig('figures/EmissivityVariability.png', dpi=300)
+#' ```
+#' 
+#' The following figures presents the apparent spectral radiance from three different pixels, each containing a different pure material for each of three different atmospheric conditions.
+#' 
+#' In the first figure, each pixel / material is presented in a different panel. Within each panel, the material is viewed under the three distinct atmospheric conditions. It is clear that the atmospheric radiative properties have a large impact on the measured signature.
+#' 
+#' ![Impact of atmospheric radiation on different materials.](figures/AtmosphericVariability.png)
+#' 
+#' In the second figure, each atmospheric state is presented in a different panel, ordered from most attenuating at the top to least attenuating at the bottom. Within each panel, the three different materials are viewed under a common set of atmospheric conditions. It is clear that the surface-leaving radiance, which is a strong function of emissivity, has a larger impact on the measured signal when the atmosphere is more transparent.
+#' 
+#' ![Distinguishability of materials under different atmospheric conditions.](figures/EmissivityVariability.png)
+#' 
+#' Now let's generate a more complete look at all the factors involved for each material emissivity and atmospheric state.
+#' 
+#' ```python
 
+# %%
 # clean up Ld due to division by small number
 ix = tau < 1e-4
 Ld_ = np.copy(Ld)
@@ -338,9 +465,18 @@ def plot_radiance(atmID=0, emisID=0):
     fig.tight_layout()
     return fig
 
-
 # loop over each material and atmospheric state
 for a in aIDs(N_atm):
     for e in eIDs:
         f = plot_radiance(atmID=a, emisID=e)
         f.savefig(f"figures/RadOverview-aID{a:03d}-eID{e:03d}", dpi=300)
+#' ```
+#' 
+#' The preceding code produced a figure like the following for each combination of material and atmospheric state. The full set of figures can be found in the `./figures/` subdirectory.
+#' 
+#' ![Detailed look at the atmospheric factors affecting apparent radiance.](figures/RadOverview-aID039-eID003.png)
+#' 
+#' 
+#' [Planck's distribution]: https://en.wikipedia.org/wiki/Planck%27s_law
+
+# %%
