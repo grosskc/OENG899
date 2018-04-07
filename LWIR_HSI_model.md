@@ -23,8 +23,9 @@ tnu = r"\tilde{\nu}"  # tilde nu
 U_wn = r"\left[\si{cm^{-1}}\right]"  # units wavenumbers
 U_rad = r"\left[\si{\micro W/(cm^2.sr.cm^{-1})}\right]"
 
-# turn off interactive plotting
-plt.ioff()
+# turn off interactive plots when run as a script from commandline
+if __name__ == '__main__':
+    plt.ioff()
 ```
 
 ## Simplest LWIR HSI model
