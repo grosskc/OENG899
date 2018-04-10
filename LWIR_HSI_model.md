@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
 ## Simplest LWIR HSI model
 
-Under clear sky conditions (no clouds, haze, etc.), scattering can be ignored in the long-wave infrared spectral region (8–12µm), greatly simplifying the radiative transfer model needed to interpret HSI data. Under these simplifying conditions, the apparent spectral radiance $L_{o,i}(\tilde{\nu})$ — $o$ means *observed*, and $k$ represents pixel index — of a single pixel in a space-born sensor can be expressed as:
+Under clear sky conditions (no clouds, haze, etc.), scattering can be ignored in the long-wave infrared spectral region (8–12µm), greatly simplifying the radiative transfer model needed to interpret HSI data. Under these simplifying conditions, the apparent spectral radiance $L_{o,k}(\tilde{\nu})$ — $o$ means *observed*, and $k$ represents pixel index — of a single pixel in a space-born sensor can be expressed as:
 
 $$L_{o,k}(\tilde{\nu}, \hat{\Omega}_r) = \tau(\tilde{\nu}, \hat{\Omega}_r) L_{s,k}(\tilde{\nu}, \hat{\Omega}_r) + L_a(\tilde{\nu}, \hat{\Omega}_r)$$
 
